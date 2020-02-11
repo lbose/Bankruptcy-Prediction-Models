@@ -1,0 +1,76 @@
+/*Run Proc Univariate on all Data* For each variable, note down the outlier observation numbers and the outlier values*/
+proc univariate data=bankruptcydata plots;
+run;
+/*Rank Data into ten groups for each variable. Now, check in which groups the observations we marked fall. Do these observations vary a lot from the group mean?If yes, replace with group mean which we get from below*/
+proc rank data=bankruptcydata
+groups=10
+out=groupbankruptcy;
+var X1-X12 X14-X25;
+ranks rank1-rank12 rank14-rank25;
+run;
+
+/*Check the group mean for each group. Select and run from %macro to %mend. Then select %let for each rank and variable at a time and run. Then run %ranker. So effectively do it 25 times*/
+%macro ranker;
+proc means data=groupbankruptcy out=means;
+var &X;
+classes &rank;
+run;
+%mend ranker;
+run;
+%ranker;
+run;
+%let rank=rank1;
+%let X=X1;
+%let rank=rank2;
+%let X=X2;
+%let rank=rank3;
+%let X=X3;
+%let rank=rank4;
+%let X=X4;
+%let rank=rank5;
+%let X=X5;
+%let rank=rank6;
+%let X=X6;
+%let rank=rank7;
+%let X=X7;
+%let rank=rank8;
+%let X=X8;
+%let rank=rank9;
+%let X=X9;
+%let rank=rank10;
+%let X=X10;
+%let rank=rank11;
+%let X=X11;
+%let rank=rank12;
+%let X=X12;
+%let rank=rank14;
+%let X=X14;
+%let rank=rank15;
+%let X=X15;
+%let rank=rank16;
+%let X=X16;
+%let rank=rank17;
+%let X=X17;
+%let rank=rank18;
+%let X=X18;
+%let rank=rank19;
+%let X=X19;
+%let rank=rank20;
+%let X=X20;
+%let rank=rank21;
+%let X=X21;
+%let rank=rank22;
+%let X=X22;
+%let rank=rank23;
+%let X=X23;
+%let rank=rank24;
+%let X=X24;
+%let rank=rank25;
+
+/*Append group means*/
+data meansfinal;
+set means;
+run;
+
+
+%let X=X25;

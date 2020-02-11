@@ -1,0 +1,92 @@
+#Reading Bankruptcy Data
+bankruptcy<-read.table('E:/Acads_new/UCSpring2011/Data Mining/HW AND PROJECTS/default 93 to 05 cross sectional.csv',header=T,sep=",")
+str(bankruptcy)
+library(boot)#cv.glm
+library(tree)#tree
+library(maptree)#draw tree
+#GLM Model on Full Data
+bankruptcy0.glm<-glm(bkind~X1+X2+X3+X4+X5+X6+X7+X8+X9+X10+X11+X12+X14+X15+X16+X17+X18+X19+X20+X21+X22+X23+X24+X25,family=binomial(link=logit),data = bankruptcy)
+nobs<-dim(bankruptcy)[1]
+myseq<-seq(1,nobs)
+nsub<-floor(nobs*0.9) 
+subset<-sample(myseq, nsub, replace = F)
+bankruptcy.train<-bankruptcy[subset,] 
+#Training data
+bankruptcy.test<-bankruptcy[-subset,] 
+#Testing data
+#GLM Model on Training Data
+bankruptcy.glm<-glm(bkind~X1+X2+X3+X4+X5+X6+X7+X8+X9+X10+X11+X12+X14+X15+X16+X17+X18+X19+X20+X21+X22+X23+X24+X25,family=binomial(link=logit),data = bankruptcy.train)
+#Finding Best Model
+#AIC
+#Training
+bankruptcy.step <- step(bankruptcy.glm)
+summary(bankruptcy.step)
+#Full Model
+bankruptcy0.step<-step(bankruptcy0.glm)
+summary(bankruptcy0.step)
+#BIC
+#Training 
+bankruptcy.step2 <- step(bankruptcy.glm,k=log(nrow(bankruptcy.train)))
+summary(bankruptcy.step2)
+#Full Model
+bankruptcy0.step2 <- step(bankruptcy0.glm,k=log(nrow(bankruptcy)))
+summary(bankruptcy0.step2)
+# Cross validation 2 fold Training Data
+pcut <- mean(bankruptcy.step2$ y)
+rho <- 35 #asymmetric cost
+cost1 <-function(r, pi)  mean( ((r==0)&(pi>pcut)) | rho * ((r==1)&(pi<pcut))  )
+cv.err2 <- cv.glm(bankruptcy.train, bankruptcy.step2, cost1, K=2)$delta[1] 
+# Cross Validation 2 fold Full Data
+pcutfull <- mean(bankruptcy0.step $ y)
+costfull <-function(r, pi)  mean( ((r==0)&(pi>pcutfull)) | rho * ((r==1)&(pi<pcutfull))  )
+cv.errfull <- cv.glm(bankruptcy, bankruptcy0.step, costfull, K=2)$delta[1] #2 fold cv on full data
+# Predict on Testing Data
+bankruptcy.glm.predict <- predict(bankruptcy.glm, newdata = bankruptcy.test, type = "response")
+bankruptcy.glm.predict<-(bankruptcy.glm.predict >= pcut) * 1
+#Table to Determine Misclassification
+table.glm <- table(bankruptcy.glm.predict, bankruptcy.test$bkind)
+mis.glm <- (table.glm[2]+table.glm[3])/sum(table.glm)
+#Tree Model(Done on entire dataset since the training has only zeroes)
+bkrp<- bankruptcy
+bkrp$bkind <-as.factor(bkrp$bkind)
+bkrp.tree <- tree(bkind ~X1+X2+X3+X4+X5+X6+X7+X8+X9+X10+X11+X12+X14+X15+X16+X17+X18+X19+X20+X21+X22+X23+X24+X25, data = bkrp) 
+draw.tree(bkrp.tree)
+#Cross Validation to identify Optimal tree size
+bkrp.tree.cv <- cv.tree(bkrp.tree, FUN=prune.misclass)
+plot(bkrp.tree.cv)
+bkrp.prune.tree<-prune.tree(bkrp.tree,best=6)
+#Best size based on cv
+draw.tree(bkrp.prune.tree)
+# Misclassification rate of tree model
+bkrp.test <- bankruptcy.test
+bkrp.test$bkind <- as.factor(bkrp.test$bkind)
+bkrp.tree.predict <- predict(bkrp.tree, bkrp.test, type="class")
+table.tree <- table(bkrp.tree.predict, bkrp.test$bkind)
+mis.tree <- (table.tree[2]+table.tree[3])/sum(table.tree)
+#ROC Curve
+library(Epi)
+attach(bankruptcy)
+ROC(form=bkind~X1+X2+X3+X4+X5+X6+X7+X8+X9+X10+X11+X12+X14+X15+X16+X17+X18+X19+X20+X21+X22+X23+X24+X25,plot="ROC")
+#Hosmer Lemeshow Test for goodness of Fit
+hosmerlem = function(y, yhat, g=10) {
+  cutyhat = cut(yhat,
+     breaks = quantile(yhat, probs=seq(0,
+       1, 1/g)), include.lowest=TRUE)
+  obs = xtabs(cbind(1 - y, y) ~ cutyhat)
+  expect = xtabs(cbind(1 - yhat, yhat) ~ cutyhat)
+  chisq = sum((obs - expect)^2/expect)
+  P = 1 - pchisq(chisq, g - 2)
+  return(list(chisq=chisq,p.value=P))
+}
+#Full Model
+attach(bankruptcy)
+hosmerlem(y=bkind,yhat=fitted(bankruptcy0.step))
+# Training Data
+attach(bankruptcy.train)
+hosmerlem(y=bkind,yhat=fitted(bankruptcy.step2))
+  
+ 
+  
+  
+  
+ 
